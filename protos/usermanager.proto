@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package dsbd;
+
+service UserManager {
+  rpc CheckUser (UserCheckRequest) returns (UserCheckReply);
+}
+
+message UserCheckRequest {
+  string email = 1;
+  string request_id = 2;
+}
+
+message UserCheckReply {
+  bool exists = 1;
+}

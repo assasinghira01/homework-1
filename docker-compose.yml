@@ -1,0 +1,87 @@
+
+
+services:
+  # -------------------------------------------------------------
+  # 🚹 USER MANAGER (Gestione Utenti)
+  # -------------------------------------------------------------
+  user-manager:
+    build:
+      context: .                      # Guarda nella cartella principale (per vedere 'protos')
+      dockerfile: user_manager/Dockerfile
+    container_name: user_manager
+    ports:
+      - "5000:5000"                   # API REST per Postman (Registrazione)
+      - "50051:50051"                 # Canale gRPC per Data Collector
+    depends_on:
+      - user-db
+    environment:
+      - DB_HOST=user-db
+      - DB_NAME=user_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+    networks:
+      - app-network
+
+  # Database User DB
+  user-db:
+    image: postgres:15-alpine
+    container_name: user_db
+    environment:
+      - POSTGRES_DB=user_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"                   # Porta standard Postgres
+    volumes:
+      - user_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # -------------------------------------------------------------
+  # ✈️ DATA COLLECTOR (Dati Voli)
+  # -------------------------------------------------------------
+  data-collector:
+    build:
+      context: .                      # Guarda nella cartella principale
+      dockerfile: data_collector/Dockerfile
+    container_name: data_collector
+    ports:
+      - "5001:5000"                   # API REST mappata su 5001 (per non confliggere con l'altra)
+    depends_on:
+      - data-db
+      - user-manager                  # Deve partire dopo lo User Manager
+    environment:
+      - USER_MANAGER_HOST=user-manager
+      - USER_MANAGER_GRPC_PORT=50051
+      - DB_HOST=data-db
+      - DB_NAME=data_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+    networks:
+      - app-network
+
+  # Database Data DB
+  data-db:
+    image: postgres:15-alpine
+    container_name: data_db
+    environment:
+      - POSTGRES_DB=data_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5433:5432"                   # Mappata su 5433 per evitare conflitti
+    volumes:
+      - collector_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+# -------------------------------------------------------------
+# RETI E VOLUMI CONDIVISI
+# -------------------------------------------------------------
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  user_data:
+  collector_data:
